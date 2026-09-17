@@ -162,8 +162,16 @@ function handler(event) {
           },
           // Scoped to this one repo. Without this condition ANY GitHub repo in
           // the world could assume the role.
+          //
+          // Both subject formats are accepted: this org customizes the claim to
+          // embed numeric owner/repo IDs, and the default form is kept so the
+          // role keeps working if that setting is ever turned off. Either way
+          // the match is pinned to this single repository.
           StringLike: {
-            "token.actions.githubusercontent.com:sub": `repo:${config.githubOrg}/${config.githubRepo}:*`,
+            "token.actions.githubusercontent.com:sub": [
+              `repo:${config.githubOrg}/${config.githubRepo}:*`,
+              `repo:${config.githubOrg}@${config.githubOwnerId}/${config.githubRepo}@${config.githubRepoId}:*`,
+            ],
           },
         },
       ),

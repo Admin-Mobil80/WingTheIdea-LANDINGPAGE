@@ -33,6 +33,17 @@ export const config = {
   githubOrg: "Admin-Mobil80",
   githubRepo: "WingTheIdea-LANDINGPAGE",
 
+  /**
+   * This org customizes the OIDC subject claim to embed numeric IDs, so tokens
+   * arrive as:
+   *   repo:Admin-Mobil80@208915971/WingTheIdea-LANDINGPAGE@1374852340:ref:...
+   * rather than the default repo:<org>/<repo>:ref:...
+   * The trust policy must match this form or every AssumeRoleWithWebIdentity
+   * is denied. IDs are immutable, which is the point of the customization.
+   */
+  githubOwnerId: "208915971",
+  githubRepoId: "1374852340",
+
   /** SES domain identity region. SES identities are per-region: verifying in
    *  us-east-1 does NOT verify in ap-south-1. Sending must use this region. */
   sesRegion: "us-east-1",
