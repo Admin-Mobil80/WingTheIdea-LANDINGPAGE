@@ -35,6 +35,28 @@ export class SiteStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
+    // This bucket hosts every web app on this domain, one folder per app, but
+    // only this stack can manage its policy — a bucket has exactly one, so a
+    // second stack declaring one would overwrite this. withOriginAccessControl
+    // below grants read to THIS distribution alone (AWS:SourceArn), which
+    // leaves a sibling app's distribution with a 403.
+    //
+    // So read access is also granted at the account level: any CloudFront
+    // distribution in this account may read this bucket. That is what lets
+    // ReconFlow serve reconflow.wingtheidea.com from RECONFLOW/PORTAL and
+    // bms.reconflow.wingtheidea.com from RECONFLOW/BMS, and it means a new app
+    // needs no further change here. The bucket stays private: public access is
+    // blocked, and only the CloudFront service principal is allowed.
+    bucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: "AllowCloudFrontOriginAccessControlReadForAccount",
+        principals: [new iam.ServicePrincipal("cloudfront.amazonaws.com")],
+        actions: ["s3:GetObject"],
+        resources: [bucket.arnForObjects("*")],
+        conditions: { StringEquals: { "AWS:SourceAccount": this.account } },
+      }),
+    );
+
     // Two jobs, both at viewer-request:
     //  1. Redirect the apex to www, so there is one canonical hostname.
     //  2. Rewrite directory paths. Next.js static export emits
