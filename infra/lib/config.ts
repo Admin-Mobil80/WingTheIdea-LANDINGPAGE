@@ -18,13 +18,17 @@ export const config = {
   apexDomain: "wingtheidea.com",
 
   /**
-   * NOTE: deliberately NOT "webapps.wingtheidea.com". A bucket name containing
-   * dots breaks CloudFront's HTTPS connection to the origin: the origin becomes
-   * <name>.s3.<region>.amazonaws.com, and AWS's wildcard certificate
-   * *.s3.<region>.amazonaws.com matches only a single label. The name is never
-   * user-visible because CloudFront fronts the bucket.
+   * House convention, matching every other product in this account: one
+   * webapps.<domain> bucket per domain, holding a folder per app, with a
+   * CloudFront distribution per subdomain pointing at its folder via
+   * OriginPath (e.g. webapps.skilterco.com/PORTAL -> portal.skilterco.com).
+   *
+   * Dots in the bucket name are fine here: a dozen live sites in this account
+   * already serve from dotted webapps.* buckets over OAC REST origins.
    */
-  bucketName: "wingtheidea-webapps",
+  bucketName: "webapps.wingtheidea.com",
+  /** Folder inside the bucket for this app, and the distribution's OriginPath. */
+  appFolder: "LANDINGPAGE",
 
   /** The account already has one GitHub OIDC provider (created 2026-04-16 by
    *  another product). IAM allows only one per URL, so it is imported. */

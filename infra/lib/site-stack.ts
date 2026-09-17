@@ -82,7 +82,11 @@ function handler(event) {
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
       defaultBehavior: {
-        origin: origins.S3BucketOrigin.withOriginAccessControl(bucket),
+        // OriginPath scopes this distribution to one app's folder, so the
+        // bucket can host other apps for this domain alongside it.
+        origin: origins.S3BucketOrigin.withOriginAccessControl(bucket, {
+          originPath: `/${config.appFolder}`,
+        }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
@@ -177,7 +181,9 @@ function handler(event) {
       ),
     });
 
-    bucket.grantReadWrite(deployRole);
+    // Scoped to this app's folder: other apps will share this bucket, and the
+    // landing page's pipeline has no business writing to their prefixes.
+    bucket.grantReadWrite(deployRole, `${config.appFolder}/*`);
     deployRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ["cloudfront:CreateInvalidation", "cloudfront:GetInvalidation"],
@@ -190,6 +196,10 @@ function handler(event) {
     // --- Outputs: these feed the GitHub repo variables --------------------
 
     new cdk.CfnOutput(this, "BucketName", { value: bucket.bucketName });
+    new cdk.CfnOutput(this, "S3Prefix", {
+      value: config.appFolder,
+      description: "Folder inside the bucket this app deploys into",
+    });
     new cdk.CfnOutput(this, "DistributionId", {
       value: distribution.distributionId,
     });
