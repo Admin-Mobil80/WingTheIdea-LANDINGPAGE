@@ -1,0 +1,42 @@
+/** Shared configuration for the WingTheIdea umbrella infrastructure. */
+export const config = {
+  /** Shared account — cloudmeter, expense.ai and flaunt live here too. */
+  account: "231427841372",
+  /** CloudFront requires its ACM certificate in us-east-1, always. */
+  certRegion: "us-east-1",
+  /** Everything else follows the group's default region. */
+  region: "ap-south-1",
+
+  /** Hosted zone created manually by Riyad; CDK imports it and never owns it. */
+  hostedZoneId: "Z008500039SSWYWL7HKJI",
+  zoneName: "wingtheidea.com",
+
+  /** The landing page is served here. */
+  siteDomain: "www.wingtheidea.com",
+  /** Kept on the certificate so an apex -> www redirect can be added later
+   *  without reissuing. */
+  apexDomain: "wingtheidea.com",
+
+  /**
+   * NOTE: deliberately NOT "webapps.wingtheidea.com". A bucket name containing
+   * dots breaks CloudFront's HTTPS connection to the origin: the origin becomes
+   * <name>.s3.<region>.amazonaws.com, and AWS's wildcard certificate
+   * *.s3.<region>.amazonaws.com matches only a single label. The name is never
+   * user-visible because CloudFront fronts the bucket.
+   */
+  bucketName: "wingtheidea-webapps",
+
+  /** The account already has one GitHub OIDC provider (created 2026-04-16 by
+   *  another product). IAM allows only one per URL, so it is imported. */
+  githubOidcProviderArn:
+    "arn:aws:iam::231427841372:oidc-provider/token.actions.githubusercontent.com",
+  githubOrg: "Admin-Mobil80",
+  githubRepo: "WingTheIdea-LANDINGPAGE",
+
+  /** SES domain identity region. SES identities are per-region: verifying in
+   *  us-east-1 does NOT verify in ap-south-1. Sending must use this region. */
+  sesRegion: "us-east-1",
+
+  /** Resource prefix — mandatory, since products share this account. */
+  prefix: "wingtheidea",
+} as const;

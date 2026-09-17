@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Defined once here and referenced everywhere else, so the whole
+   site re-themes from this block. Light values first, dark overridden below.
+   --------------------------------------------------------------------------- */
+:root {
+  --background: #fbfbfd;
+  --surface: #ffffff;
+  --surface-muted: #f3f3f7;
+  --foreground: #12121a;
+  --muted: #5c5c6e;
+  --border: #e4e4ec;
+
+  --brand: #4f46e5;
+  --brand-strong: #3730a3;
+  --brand-soft: #eef2ff;
+  --accent: #f59e0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #08080c;
+    --surface: #101018;
+    --surface-muted: #16161f;
+    --foreground: #f2f2f7;
+    --muted: #9a9aad;
+    --border: #23232f;
+
+    --brand: #8b85f5;
+    --brand-strong: #a5a0f8;
+    --brand-soft: #16162a;
+    --accent: #fbbf24;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Visible keyboard focus everywhere, since we restyle interactive elements. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
