@@ -35,14 +35,32 @@ export class SiteStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // Next.js static export emits /about/index.html, but S3 has no concept of
-    // a directory index. This rewrites the request path before it reaches the
-    // origin.
+    // Two jobs, both at viewer-request:
+    //  1. Redirect the apex to www, so there is one canonical hostname.
+    //  2. Rewrite directory paths. Next.js static export emits
+    //     /about/index.html, but S3 has no concept of a directory index.
     const rewriteFn = new cloudfront.Function(this, "DirectoryIndexRewrite", {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
       code: cloudfront.FunctionCode.fromInline(`
 function handler(event) {
   var request = event.request;
+  var host = request.headers.host ? request.headers.host.value : '';
+
+  if (host === '${config.apexDomain}') {
+    var qs = request.querystring ? Object.keys(request.querystring).map(function (k) {
+      var v = request.querystring[k].value;
+      return v ? k + '=' + v : k;
+    }).join('&') : '';
+    return {
+      statusCode: 301,
+      statusDescription: 'Moved Permanently',
+      headers: {
+        location: { value: 'https://${config.siteDomain}' + request.uri + (qs ? '?' + qs : '') },
+        'cache-control': { value: 'max-age=3600' },
+      },
+    };
+  }
+
   var uri = request.uri;
   if (uri.endsWith('/')) {
     request.uri = uri + 'index.html';
@@ -57,7 +75,9 @@ function handler(event) {
     const distribution = new cloudfront.Distribution(this, "SiteDistribution", {
       comment: `${config.prefix} landing page`,
       defaultRootObject: "index.html",
-      domainNames: [config.siteDomain],
+      // Both hostnames terminate here; the viewer-request function 301s the
+      // apex to www. The certificate already covers both.
+      domainNames: [config.siteDomain, config.apexDomain],
       certificate: props.certificate,
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
@@ -103,6 +123,18 @@ function handler(event) {
     new route53.AaaaRecord(this, "SiteAliasAAAA", {
       zone,
       recordName: config.siteDomain,
+      target,
+    });
+
+    // Apex records, so wingtheidea.com resolves at all and can be redirected.
+    new route53.ARecord(this, "ApexAliasA", {
+      zone,
+      recordName: config.apexDomain,
+      target,
+    });
+    new route53.AaaaRecord(this, "ApexAliasAAAA", {
+      zone,
+      recordName: config.apexDomain,
       target,
     });
 
