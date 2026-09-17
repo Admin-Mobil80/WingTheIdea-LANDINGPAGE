@@ -20,10 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Skips rather than fails while the AWS infra and app code do not exist,
-      # so main stays green. See docs/DEPLOYMENT.md for the variables to set.
+      # The infrastructure exists now, so a missing variable is a real error.
+      # This used to skip quietly, which made a no-op deploy look successful.
       - name: Check deploy configuration
-        id: cfg
         env:
           ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           BUCKET: ${{ vars.S3_BUCKET }}
@@ -32,36 +31,32 @@ jobs:
           [ -z "$ROLE_ARN" ] && missing="$missing AWS_DEPLOY_ROLE_ARN"
           [ -z "$BUCKET" ]   && missing="$missing S3_BUCKET"
           if [ -n "$missing" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Deploy skipped::Not configured yet - missing:$missing"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "::error title=Deploy not configured::Missing repository variable(s):$missing"
+            echo "Set them under Settings > Secrets and variables > Actions > Variables."
+            echo "They must be VARIABLES (vars.*), not secrets."
+            exit 1
           fi
+          echo "Deploying to bucket: $BUCKET"
 
       - name: Set up Node
-        if: steps.cfg.outputs.ready == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install dependencies
-        if: steps.cfg.outputs.ready == 'true'
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
       - name: Build
-        if: steps.cfg.outputs.ready == 'true'
         run: npm run build --if-present
 
       - name: Configure AWS credentials (OIDC)
-        if: steps.cfg.outputs.ready == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
 
       - name: Sync to S3
-        if: steps.cfg.outputs.ready == 'true'
         env:
           BUCKET: ${{ vars.S3_BUCKET }}
           BUILD_DIR: ${{ vars.BUILD_DIR || 'out' }}
@@ -80,8 +75,23 @@ jobs:
             --cache-control "public,max-age=0,must-revalidate"
 
       - name: Invalidate CloudFront
-        if: steps.cfg.outputs.ready == 'true' && vars.CLOUDFRONT_DISTRIBUTION_ID != ''
+        if: vars.CLOUDFRONT_DISTRIBUTION_ID != ''
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
+
+      - name: Verify the site is populated
+        env:
+          BUCKET: ${{ vars.S3_BUCKET }}
+        run: |
+          count=$(aws s3 ls "s3://$BUCKET" --recursive | wc -l | tr -d ' ')
+          echo "Objects in s3://$BUCKET: $count"
+          if [ "$count" = "0" ]; then
+            echo "::error title=Deploy wrote nothing::The sync completed but the bucket is empty."
+            exit 1
+          fi
+          aws s3 ls "s3://$BUCKET/index.html" >/dev/null || {
+            echo "::error title=No index.html::The bucket has objects but no index.html at the root."
+            exit 1
+          }
