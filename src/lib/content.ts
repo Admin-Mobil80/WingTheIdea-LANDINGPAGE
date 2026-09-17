@@ -11,7 +11,11 @@ export const site = {
   tagline: "Ideas, shipped.",
   description:
     "WingTheIdea is a product studio. We take early ideas and build them into working software that real customers use.",
-  email: "hello@wingtheidea.com", // PLACEHOLDER — confirm the real address
+  /** Sending address on the SES-verified domain. */
+  senderEmail: "no-reply@wingtheidea.com",
+  /** Address the Contact CTA points at. NOTE: a no-reply mailbox cannot
+   *  receive replies — swap this for a monitored inbox before launch. */
+  email: "no-reply@wingtheidea.com",
 };
 
 export const nav = [
