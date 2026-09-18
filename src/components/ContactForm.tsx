@@ -4,6 +4,23 @@ import { useState } from "react";
 
 type Status = "idle" | "submitting" | "sent" | "error";
 
+/**
+ * CloudFront signs requests to the Lambda Function URL origin (OAC + AWS_IAM),
+ * but it does NOT hash the request body. Without this header the SigV4
+ * signature never matches a POST that has a payload, and the function URL
+ * returns 403 — which the distribution's error pages then render as a 404.
+ * The viewer has to supply the hex SHA-256 of the exact body it sends.
+ */
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 const field =
   "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition-colors placeholder:text-muted/70 focus:border-brand";
 
@@ -20,16 +37,20 @@ export function ContactForm() {
     setMessage("");
 
     try {
+      const requestBody = JSON.stringify(payload);
       const res = await fetch("/api/contact", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "content-type": "application/json",
+          "x-amz-content-sha256": await sha256Hex(requestBody),
+        },
+        body: requestBody,
       });
-      const body = await res.json().catch(() => ({}));
+      const result = await res.json().catch(() => ({}));
 
-      if (!res.ok || !body.ok) {
+      if (!res.ok || !result.ok) {
         setStatus("error");
-        setMessage(body.error ?? "Something went wrong. Please try again.");
+        setMessage(result.error ?? "Something went wrong. Please try again.");
         return;
       }
       form.reset();
