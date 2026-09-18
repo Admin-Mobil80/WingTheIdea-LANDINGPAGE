@@ -5,6 +5,9 @@ import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 const ses = new SESv2Client({ region: process.env.SES_REGION });
 
 const FROM = process.env.FROM_ADDRESS;
+// Inboxes show the display name, not the address, so mail reads as being from
+// "WingTheIdea" rather than a no-reply mailbox.
+const FROM_HEADER = `${process.env.FROM_NAME} <${FROM}>`;
 const TO = process.env.TO_ADDRESS;
 
 const LIMITS = { name: 200, email: 320, phone: 50, description: 5000 };
@@ -81,7 +84,7 @@ export const handler = async (event) => {
   try {
     const out = await ses.send(
       new SendEmailCommand({
-        FromEmailAddress: FROM,
+        FromEmailAddress: FROM_HEADER,
         Destination: { ToAddresses: [TO] },
         // Replying goes to the person who submitted, not to no-reply.
         ReplyToAddresses: [email],

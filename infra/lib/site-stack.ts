@@ -157,6 +157,7 @@ function handler(event) {
       environment: {
         SES_REGION: config.sesRegion,
         FROM_ADDRESS: config.contactFrom,
+        FROM_NAME: config.contactFromName,
         TO_ADDRESS: config.contactTo,
       },
     });

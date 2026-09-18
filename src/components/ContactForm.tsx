@@ -127,16 +127,17 @@ export function ContactForm() {
           <span className="font-normal text-muted">(optional)</span>
         </label>
         <input id="phone" name="phone" type="tel" maxLength={50}
-          autoComplete="tel" placeholder="Include your country code" className={field} />
+          inputMode="tel" autoComplete="tel" placeholder="+1 555 000 0000"
+          className={field} />
       </div>
 
       <div className="mt-5">
         <label htmlFor="description" className="mb-2 block text-sm font-medium">
           Describe your idea
         </label>
-        <textarea id="description" name="description" required rows={6}
+        <textarea id="description" name="description" required rows={5}
           minLength={10} maxLength={5000}
-          placeholder="What are you trying to build, and who is it for?"
+          placeholder="What are you building?"
           className={`${field} resize-y`} />
       </div>
 
@@ -154,9 +155,6 @@ export function ContactForm() {
         {busy ? "Sending…" : "Submit"}
       </button>
 
-      <p className="mt-4 text-xs text-muted">
-        We use your details only to reply to this enquiry.
-      </p>
     </form>
   );
 }

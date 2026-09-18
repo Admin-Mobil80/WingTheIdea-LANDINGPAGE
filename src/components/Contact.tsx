@@ -12,8 +12,7 @@ export function Contact() {
             Have an idea worth building?
           </h2>
           <p className="mx-auto mt-4 max-w-md text-muted">
-            Tell us what you are thinking. If it is a fit, we will say so
-            quickly — and if it is not, we will tell you that just as quickly.
+            Tell us what you are thinking.
           </p>
         </div>
 

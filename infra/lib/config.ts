@@ -54,6 +54,8 @@ export const config = {
 
   /** Contact form: SES-verified sender, and where submissions land. */
   contactFrom: "no-reply@wingtheidea.com",
+  /** Display name shown in the recipient's inbox. */
+  contactFromName: "WingTheIdea",
   contactTo: "riyad@mobil80.com",
 
   /** Resource prefix — mandatory, since products share this account. */
