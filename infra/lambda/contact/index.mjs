@@ -79,7 +79,7 @@ export const handler = async (event) => {
   ].join("\n");
 
   try {
-    await ses.send(
+    const out = await ses.send(
       new SendEmailCommand({
         FromEmailAddress: FROM,
         Destination: { ToAddresses: [TO] },
@@ -92,6 +92,11 @@ export const handler = async (event) => {
           },
         },
       }),
+    );
+    // Log the MessageId: without it there is no way to trace a message that
+    // SES accepted but the recipient never saw.
+    console.log(
+      JSON.stringify({ event: "ses_send_ok", messageId: out.MessageId, to: TO, from: FROM }),
     );
   } catch (err) {
     // Log the detail, return something generic.

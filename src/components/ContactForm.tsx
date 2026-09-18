@@ -109,7 +109,7 @@ export function ContactForm() {
             Your name
           </label>
           <input id="name" name="name" type="text" required maxLength={200}
-            autoComplete="name" placeholder="Riyad Rasheed" className={field} />
+            autoComplete="name" placeholder="Alex Morgan" className={field} />
         </div>
 
         <div>
@@ -127,7 +127,7 @@ export function ContactForm() {
           <span className="font-normal text-muted">(optional)</span>
         </label>
         <input id="phone" name="phone" type="tel" maxLength={50}
-          autoComplete="tel" placeholder="+91 98765 43210" className={field} />
+          autoComplete="tel" placeholder="Include your country code" className={field} />
       </div>
 
       <div className="mt-5">

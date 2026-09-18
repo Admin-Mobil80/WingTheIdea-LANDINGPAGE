@@ -22,8 +22,23 @@ export class EmailStack extends cdk.Stack {
 
     // Passing the hosted zone makes CDK write the three DKIM CNAME records
     // itself, so verification completes without any manual DNS step.
+    //
+    // A custom MAIL FROM subdomain makes SPF *align* with wingtheidea.com.
+    // Without it the envelope sender is amazonses.com: SPF still passes, but it
+    // authenticates Amazon's domain rather than ours, so DMARC leans entirely on
+    // DKIM and receivers like Gmail treat the mail as weaker.
     const identity = new ses.EmailIdentity(this, "DomainIdentity", {
       identity: ses.Identity.publicHostedZone(zone),
+      mailFromDomain: `mail.${config.zoneName}`,
+    });
+
+    // SPF for the domain itself. Missing entirely until now, which is a common
+    // reason a new sending domain lands in Gmail's spam folder.
+    new route53.TxtRecord(this, "SpfRecord", {
+      zone,
+      recordName: config.zoneName,
+      values: ["v=spf1 include:amazonses.com ~all"],
+      ttl: cdk.Duration.hours(1),
     });
 
     // Start DMARC in monitor-only mode. Tighten to quarantine/reject once you
