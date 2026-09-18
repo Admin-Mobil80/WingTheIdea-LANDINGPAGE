@@ -3,6 +3,8 @@ import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as logs from "aws-cdk-lib/aws-logs";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as targets from "aws-cdk-lib/aws-route53-targets";
 import * as s3 from "aws-cdk-lib/aws-s3";
@@ -138,6 +140,59 @@ function handler(event) {
       ],
     });
 
+    // --- Contact form API ------------------------------------------------
+
+    // Served from the same distribution at /api/*, so the form posts
+    // same-origin: no CORS, and no API hostname baked into the build.
+    const contactFn = new lambda.Function(this, "ContactFunction", {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: "index.handler",
+      code: lambda.Code.fromAsset("lambda/contact"),
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 256,
+      logGroup: new logs.LogGroup(this, "ContactFunctionLogs", {
+        retention: logs.RetentionDays.ONE_MONTH,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
+      environment: {
+        SES_REGION: config.sesRegion,
+        FROM_ADDRESS: config.contactFrom,
+        TO_ADDRESS: config.contactTo,
+      },
+    });
+
+    // Send only as this domain. Without the FromAddress condition the function
+    // could send as any identity in this shared account.
+    contactFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["ses:SendEmail"],
+        resources: [
+          `arn:aws:ses:${config.sesRegion}:${this.account}:identity/${config.zoneName}`,
+        ],
+        conditions: {
+          StringEquals: { "ses:FromAddress": config.contactFrom },
+        },
+      }),
+    );
+
+    // AWS_IAM auth means the URL is useless without a signed request; only
+    // CloudFront can reach it, via OAC.
+    const contactUrl = contactFn.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.AWS_IAM,
+    });
+
+    distribution.addBehavior(
+      "/api/*",
+      origins.FunctionUrlOrigin.withOriginAccessControl(contactUrl),
+      {
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        originRequestPolicy:
+          cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+    );
+
     const target = route53.RecordTarget.fromAlias(
       new targets.CloudFrontTarget(distribution),
     );
@@ -227,5 +282,8 @@ function handler(event) {
     });
     new cdk.CfnOutput(this, "DeployRoleArn", { value: deployRole.roleArn });
     new cdk.CfnOutput(this, "SiteUrl", { value: `https://${config.siteDomain}` });
+    new cdk.CfnOutput(this, "ContactEndpoint", {
+      value: `https://${config.siteDomain}/api/contact`,
+    });
   }
 }

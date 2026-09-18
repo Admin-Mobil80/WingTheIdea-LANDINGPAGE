@@ -52,6 +52,10 @@ export const config = {
    *  us-east-1 does NOT verify in ap-south-1. Sending must use this region. */
   sesRegion: "us-east-1",
 
+  /** Contact form: SES-verified sender, and where submissions land. */
+  contactFrom: "no-reply@wingtheidea.com",
+  contactTo: "riyad@mobil80.com",
+
   /** Resource prefix — mandatory, since products share this account. */
   prefix: "wingtheidea",
 } as const;
