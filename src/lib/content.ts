@@ -1,9 +1,4 @@
-/**
- * All site copy lives here so it can be edited without touching markup.
- *
- * PLACEHOLDER copy is marked. Replace before launch — it is written to be
- * plausible, not accurate.
- */
+/** All site copy lives here so it can be edited without touching markup. */
 
 export const site = {
   name: "WingTheIdea",
@@ -54,19 +49,33 @@ export type Venture = {
   href?: string;
 };
 
-// PLACEHOLDER — ReconFlow's description is a guess from the name. Correct it.
 export const ventures: Venture[] = [
+  {
+    name: "CloudMeter",
+    status: "Live",
+    href: "https://www.cloudmeter.io",
+    summary:
+      "Cloud cost monitoring across providers and AI models — one view of what you are actually spending, wherever it runs.",
+  },
+  {
+    name: "Expenze",
+    status: "Live",
+    href: "https://www.expenze.ai",
+    summary:
+      "Agentic expense auditing for businesses, with claims submitted however people actually work — email, WhatsApp, portal or API.",
+  },
+  {
+    name: "Flaunt",
+    status: "Live",
+    href: "https://www.flaunt.network",
+    summary:
+      "A networking platform built on your real network, not a list of contacts you have never spoken to.",
+  },
   {
     name: "ReconFlow",
     status: "In development",
     summary:
-      "Reconciliation without the spreadsheet archaeology — matching records across systems and surfacing only what actually needs a human.",
-  },
-  {
-    name: "Next idea",
-    status: "Exploring",
-    summary:
-      "We are always working on what comes next. If you have an idea worth building, we would like to hear it.",
+      "An agentic decision support system: it reads data across disparate systems and derives meaning for the human in the loop. In study, with a prototype underway.",
   },
 ];
 

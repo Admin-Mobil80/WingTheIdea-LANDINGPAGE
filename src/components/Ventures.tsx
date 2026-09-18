@@ -17,7 +17,7 @@ export function Ventures() {
           Ventures
         </h2>
         <p className="mt-4 max-w-xl text-muted">
-          What we are building right now.
+          Three shipped and in the hands of customers, one in the workshop.
         </p>
 
         <ul className="mt-12 grid gap-5 sm:grid-cols-2">
@@ -42,9 +42,11 @@ export function Ventures() {
               {v.href && (
                 <a
                   href={v.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="mt-5 text-sm font-medium text-brand hover:underline"
                 >
-                  Visit site →
+                  {v.href.replace("https://", "")} →
                 </a>
               )}
             </li>
