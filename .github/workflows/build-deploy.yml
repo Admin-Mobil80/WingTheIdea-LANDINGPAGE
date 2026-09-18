@@ -1,27 +1,66 @@
-name: Deploy
+name: Build & Deploy
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
 
-# Required for GitHub's OIDC token. Do not add long-lived AWS keys here.
+# Least privilege by default; the deploy job widens this for OIDC.
 permissions:
-  id-token: write
   contents: read
 
 concurrency:
-  group: deploy-main
-  cancel-in-progress: false
+  group: build-deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  deploy:
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # The infrastructure exists now, so a missing variable is a real error.
-      # This used to skip quietly, which made a no-op deploy look successful.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify static export
+        run: |
+          test -d out || { echo "::error::next build produced no out/ directory - is output:'export' still set in next.config.ts?"; exit 1; }
+          test -f out/index.html
+
+      # Publishing exactly what was built and linted here, rather than
+      # rebuilding in the deploy job, so the tested bytes are the shipped bytes.
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: out/
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy
+    needs: build
+    # Never deploy from a pull request; main and manual runs only.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for the OIDC token
+    steps:
       - name: Check deploy configuration
         env:
           ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -38,17 +77,11 @@ jobs:
           fi
           echo "Deploying to s3://$BUCKET/${{ vars.S3_PREFIX || 'LANDINGPAGE' }}"
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Download build output
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
-
-      - name: Build
-        run: npm run build --if-present
+          name: site
+          path: out
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -60,18 +93,15 @@ jobs:
         env:
           BUCKET: ${{ vars.S3_BUCKET }}
           PREFIX: ${{ vars.S3_PREFIX || 'LANDINGPAGE' }}
-          BUILD_DIR: ${{ vars.BUILD_DIR || 'out' }}
         run: |
-          if [ ! -d "$BUILD_DIR" ]; then
-            echo "::error title=No build output::Expected '$BUILD_DIR'. Next.js static export writes to out/. Check output:'export' is set in next.config.ts."
-            exit 1
-          fi
+          test -f out/index.html || { echo "::error title=Empty artifact::out/index.html missing after download."; exit 1; }
           # Hashed assets cache hard; everything else must revalidate so a
-          # deploy is visible immediately.
-          aws s3 sync "$BUILD_DIR" "s3://$BUCKET/$PREFIX" --delete \
+          # deploy is visible immediately. --delete is filter-aware, so each
+          # pass only prunes files matching its own include/exclude set.
+          aws s3 sync out "s3://$BUCKET/$PREFIX" --delete \
             --exclude "*.html" --exclude "*.json" \
             --cache-control "public,max-age=31536000,immutable"
-          aws s3 sync "$BUILD_DIR" "s3://$BUCKET/$PREFIX" --delete \
+          aws s3 sync out "s3://$BUCKET/$PREFIX" --delete \
             --exclude "*" --include "*.html" --include "*.json" \
             --cache-control "public,max-age=0,must-revalidate"
 
@@ -90,10 +120,10 @@ jobs:
           count=$(aws s3 ls "s3://$BUCKET/$PREFIX/" --recursive | wc -l | tr -d ' ')
           echo "Objects in s3://$BUCKET/$PREFIX: $count"
           if [ "$count" = "0" ]; then
-            echo "::error title=Deploy wrote nothing::The sync completed but the bucket is empty."
+            echo "::error title=Deploy wrote nothing::The sync completed but the prefix is empty."
             exit 1
           fi
           aws s3 ls "s3://$BUCKET/$PREFIX/index.html" >/dev/null || {
-            echo "::error title=No index.html::The bucket has objects but no index.html at the root."
+            echo "::error title=No index.html::Objects exist but index.html is missing at the prefix root."
             exit 1
           }
